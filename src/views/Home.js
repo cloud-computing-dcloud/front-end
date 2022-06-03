@@ -38,19 +38,20 @@ class App extends React.Component {
     if (sessionStorage.getItem("user") === null) {
       this.props.history.replace("/login");
     }
-    this.getMyFiles();
+    this.getMyFiles(this.state.curDirectory);
   }
 
   //获取文件夹与列表
-  getMyFiles = async () => {
+  getMyFiles = async (folderId) => {
     await request
-      .get(`${API_SERVER}/folders/${this.state.curDirectory}`, {
+      .get(`${API_SERVER}/folders/${folderId}`, {
         headers: {
           Authorization: `Bearer ${this.state.sessionToken}`,
         },
       })
       .then((response) => {
         this.setState({
+          curDirectory: folderId,
           files: JSON.stringify(response.data.files),
           folders: JSON.stringify(response.data.folders),
         });
@@ -68,8 +69,12 @@ class App extends React.Component {
     }
     this.setState({ newFolderModalLoading: true });
     request
-      .post("/folders/{newFolderName}/create", {
-        newFolderName: this.state.newFolderName,
+      .post(`${API_SERVER}/folders/${this.state.curDirectory}/create`, {
+        name: this.state.newFolderName,
+      },{
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
       })
       .then((response) => {
         message.success("Create success");
@@ -78,7 +83,7 @@ class App extends React.Component {
           newFolderModalVisible: false,
           newFolderModalLoading: false,
         });
-        this.getMyFiles();
+        this.getMyFiles(this.state.curDirectory);
       })
       .catch((error) => {
         console.log(error);
@@ -114,7 +119,7 @@ class App extends React.Component {
       uploadFileList: [],
     });
 
-    this.getMyFiles();
+    this.getMyFiles(this.state.curDirectory);
   };
 
   //删除
@@ -128,12 +133,28 @@ class App extends React.Component {
       })
       .then((response) => {
         message.success("Delete success");
-        this.getMyFiles();
+        this.getMyFiles(this.state.curDirectory);
       })
       .catch((error) => {
         console.log(error);
       });
   };
+
+  deleteFolder = (folderId) =>{
+    request
+      .delete(`${API_SERVER}/folders/${folderId}`, {
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
+      })
+      .then((response) => {
+        message.success("Delete success");
+        this.getMyFiles(this.state.curDirectory);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
 
   //退出
   logout = () => {
@@ -143,7 +164,7 @@ class App extends React.Component {
 
   render() {
     const fileList = JSON.parse(this.state.files);
-    // const folderList = JSON.parse(this.state.folders);
+    const folderList = JSON.parse(this.state.folders);
     // console.log(fileList);
     // return fileList;
 
@@ -233,13 +254,74 @@ class App extends React.Component {
                         ),
                       },
                       function () {
-                        this.getMyFiles();
+                        this.getMyFiles(this.state.curDirectory);
                       }
                     );
                   }}
                 />
               )}
             </div>
+
+            <div className={"folderFilePanel"}>
+              {folderList.map((folder, index) => (
+                <Dropdown
+                  key={index}
+                  placement="bottomCenter"
+                  trigger={["click"]}
+                  overlay={
+                    <Menu>
+                      <Menu.Item
+                        key={"open"}
+                        onClick={() => {
+                          this.getMyFiles(folder.id);
+                        }}
+                      >
+                        Open
+                      </Menu.Item>
+                      <Menu.Item
+                        key={"delete"}
+                        onClick={() => {
+                          this.deleteFolder(folder.id);
+                        }}
+                      >
+                        Delete
+                      </Menu.Item>                    
+                    </Menu>
+                  }
+                >
+                  <Button
+                    type={"link"}
+                    onClick={(event) => {
+                      this.clickCount += 1;
+                      setTimeout(() => {
+                        if (this.clickCount === 2) {
+                          if (folder.type === "directory") {
+                            this.setState(
+                              {
+                                curDirectory: folder.id,
+                              },
+                              function () {
+                                this.getMyFiles(folder.id);
+                              }
+                            );
+                          }
+                        }
+                        this.clickCount = 0;
+                      }, 300);
+                    }}
+                  >
+                    <div>
+                      <img
+                        src={require("../assets/directory.png").default}
+                        alt={""}
+                      />
+                      {folder.name}
+                    </div>
+                  </Button>
+                </Dropdown>
+              ))}
+            </div>
+
             <div className={"folderFilePanel"}>
               {fileList.map((file, index) => (
                 <Dropdown
@@ -280,7 +362,7 @@ class App extends React.Component {
                                 curDirectory: file.directory,
                               },
                               function () {
-                                this.getMyFiles();
+                                this.getMyFiles(this.state.curDirectory);
                               }
                             );
                           }
@@ -291,7 +373,7 @@ class App extends React.Component {
                   >
                     <div>
                       <img
-                        src={require("../assets/file.png").default}
+                        src={require("../assets/directory.png").default}
                         alt={""}
                       />
                       {file.name}

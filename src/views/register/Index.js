@@ -18,7 +18,7 @@ class App extends React.Component {
     request
       .post(`${API_SERVER}/signUp`, values)
       .then((response) => {
-        this.props.history.replace("/login");
+        this.props.history.replace("/");
       })
       .catch((error) => {
         console.log(error);
