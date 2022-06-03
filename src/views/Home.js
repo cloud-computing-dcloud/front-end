@@ -11,6 +11,7 @@ import {
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import request from "axios";
+import { API_SERVER } from "../config/config";
 
 /**
  * 主页
@@ -22,14 +23,16 @@ class App extends React.Component {
     super(props);
     this.state = {
       curMenuIndex: -1,
-      curDirectory: "/",
-      files: [],
+      curDirectory: sessionStorage.getItem("root_folder"),
+      files: "",
+      folders: "",
       newFolderModalVisible: false,
       newFolderModalLoading: false,
       newFolderName: "",
       uploadModalVisible: false,
       uploadModalLoading: false,
       uploadFileList: [],
+      sessionToken: sessionStorage.getItem("user"),
     };
     if (sessionStorage.getItem("user") === null) {
       this.props.history.replace("/login");
@@ -40,13 +43,16 @@ class App extends React.Component {
   //获取文件夹与列表
   getMyFiles = () => {
     request
-      .get("/folders", {
-        curDirectory: this.state.curDirectory,
+      .get(`${API_SERVER}/folders/${this.state.curDirectory}`, {
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
       })
       .then((response) => {
-        console.log(response.data.value);
+        console.log(response);
         this.setState({
-          files: response.data.value,
+          files: JSON.stringify(response.data.files),
+          folders: JSON.stringify(response.data.folders),
         });
       })
       .catch((error) => {
@@ -118,6 +124,10 @@ class App extends React.Component {
   };
 
   render() {
+    console.log(this.state.files);
+    const fileList = JSON.parse(this.state.files);
+    const folderList = JSON.parse(this.state.folders);
+    console.log(fileList);
     return (
       <div className={"homeApp"}>
         <div className={"leftMenu"}>
@@ -212,7 +222,7 @@ class App extends React.Component {
               )}
             </div>
             <div className={"folderFilePanel"}>
-              {this.state.files.map((file, index) => (
+              {fileList.map((file, index) => (
                 <Dropdown
                   key={index}
                   placement="bottomCenter"

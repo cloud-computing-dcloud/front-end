@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Button, Input } from "antd";
 import request from "axios";
 import { API_SERVER } from "../../config/config";
+import axios from "axios";
 
 /**
  * 登录
@@ -18,10 +19,10 @@ class App extends React.Component {
     request
       .post(`${API_SERVER}/login`, values)
       .then((response) => {
-        sessionStorage.setItem(
-          "user",
-          JSON.stringify(response.data.accessToken)
-        );
+        console.log(response);
+        var token = response.data.accessToken;
+        sessionStorage.setItem("user", token);
+        sessionStorage.setItem("root_folder", response.data.rootFolderId);
 
         this.props.history.replace("/home");
       })
