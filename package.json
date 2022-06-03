@@ -26,6 +26,7 @@
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0",
     "eslint": "^7.11.0",
+    "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-flowtype": "^5.2.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jest": "^24.1.0",
@@ -90,6 +91,9 @@
       "react-app/jest"
     ]
   },
+  "eslint.workingDirectories": [
+    {"mode": "auto"}
+  ],
   "browserslist": {
     "production": [
       ">0.2%",
@@ -178,6 +182,5 @@
         "ant-mobile"
       ]
     ]
-  },
-  "proxy": "http://127.0.0.1:4523/mock/1044493"
+  }
 }
