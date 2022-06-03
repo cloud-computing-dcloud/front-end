@@ -122,6 +122,39 @@ class App extends React.Component {
     this.getMyFiles(this.state.curDirectory);
   };
 
+  downloadFile = (fileId,fileName) => {
+    request
+      .post(`${API_SERVER}/folders/${this.state.curDirectory}/download`, {
+        fileId: fileId,
+      },{
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
+      })
+      .then((response) => {
+        const url = response.data.downloadUrl;
+        fetch(url, { method: 'GET' })
+          .then((res) => {
+            return res.blob() // raw 데이터를 받아온다
+          })
+          .then((blob) => {
+            const url = window.URL.createObjectURL(blob) // 받아온 날 상태의 data를 현재 window에서만 사용하는 url로 바꾼다
+            const a = document.createElement('a')
+            a.href = url
+            a.download =  fileName// 원하는 이름으로 파일명 지정
+            document.body.appendChild(a)
+            a.click() // 자동으로 눌러버리기
+            setTimeout((_) => {
+              window.URL.revokeObjectURL(url) // 해당 url을 더 사용 못하게 날려버린다
+            }, 60000)
+            a.remove() // a를 다 사용했으니 지워준다
+          })
+          .catch((err) => {
+            console.error('err: ', err)
+          })
+      })
+  }
+
   //删除
   deleteFile = (key) => {
     request
@@ -194,14 +227,7 @@ class App extends React.Component {
             >
               Upload
             </Button>
-            <Button
-              type={this.state.curMenuIndex === 3 ? "primary" : "default"}
-              onClick={(event) => {
-                message.info("To be developed");
-              }}
-            >
-              Drive Setting
-            </Button>
+          
           </div>
           <br />
           <br />
@@ -331,22 +357,21 @@ class App extends React.Component {
                   overlay={
                     <Menu>
                       <Menu.Item
+                        key={"download"}
+                        onClick={() => {
+                          this.downloadFile(file.id,file.name);
+                        }}
+                      >
+                          Download
+                      </Menu.Item>
+                      <Menu.Item
                         key={"delete"}
                         onClick={() => {
                           this.deleteFile(file.id);
                         }}
                       >
                         Delete
-                      </Menu.Item>
-                      {file.type === "file" && (
-                        <Menu.Item key={index}>
-                          <a
-                            href={"/files" + this.state.curDirectory + file.id}
-                          >
-                            Download
-                          </a>
-                        </Menu.Item>
-                      )}
+                      </Menu.Item>                    
                     </Menu>
                   }
                 >
@@ -373,7 +398,7 @@ class App extends React.Component {
                   >
                     <div>
                       <img
-                        src={require("../assets/directory.png").default}
+                        src={require("../assets/file.png").default}
                         alt={""}
                       />
                       {file.name}
