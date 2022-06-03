@@ -12,6 +12,7 @@ import {
 import { UploadOutlined } from "@ant-design/icons";
 import request from "axios";
 import { API_SERVER } from "../config/config";
+import axios from "axios";
 
 /**
  * 主页
@@ -24,8 +25,8 @@ class App extends React.Component {
     this.state = {
       curMenuIndex: -1,
       curDirectory: sessionStorage.getItem("root_folder"),
-      files: "",
-      folders: "",
+      files: JSON.stringify(["test"]),
+      folders: JSON.stringify(["test"]),
       newFolderModalVisible: false,
       newFolderModalLoading: false,
       newFolderName: "",
@@ -41,15 +42,14 @@ class App extends React.Component {
   }
 
   //获取文件夹与列表
-  getMyFiles = () => {
-    request
+  getMyFiles = async () => {
+    await request
       .get(`${API_SERVER}/folders/${this.state.curDirectory}`, {
         headers: {
           Authorization: `Bearer ${this.state.sessionToken}`,
         },
       })
       .then((response) => {
-        console.log(response);
         this.setState({
           files: JSON.stringify(response.data.files),
           folders: JSON.stringify(response.data.folders),
@@ -91,6 +91,40 @@ class App extends React.Component {
       message.warn("Please select the file you want to upload first!");
       return;
     }
+    var file = this.state.uploadFileList[0];
+    console.log("file", file);
+    var frm = new FormData();
+    frm.append("file", file);
+    // fetch(`${API_SERVER}/folders/${this.state.curDirectory}/upload`, {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "multipart/form-data",
+    //     Authorization: `Bearer ${this.state.sessionToken}`,
+    //   },
+    //   body: frm,
+    // });
+
+    request.post(
+      `${API_SERVER}/folders/${this.state.curDirectory}/upload`,
+      frm,
+      {
+        headers: {
+          "Content-Type": `multipart/form-data; boundary=${frm._boundary}`,
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
+      }
+    );
+
+    // axios({
+    //   method: "post",
+    //   url: `${API_SERVER}/folders/${this.state.curDirectory}/upload`,
+    //   data: { frm },
+    //   headers: {
+    //     "Content-Type": `multipart/form-data; boundary=${frm._boundary}`,
+    //     Authorization: `Bearer ${this.state.sessionToken}`,
+    //   },
+    // });
+
     message.success("Upload success");
     this.setState({
       curMenuIndex: -1,
@@ -98,15 +132,18 @@ class App extends React.Component {
       uploadModalLoading: false,
       uploadFileList: [],
     });
+
     this.getMyFiles();
   };
 
   //删除
-  delete = (file) => {
+  deleteFile = (key) => {
     request
-      .post("/api/delete", {
-        curDirectory: this.state.curDirectory,
-        file,
+      .delete(`${API_SERVER}/folders/${this.state.curDirectory}/delete`, {
+        data: { fileId: key },
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
       })
       .then((response) => {
         message.success("Delete success");
@@ -124,10 +161,11 @@ class App extends React.Component {
   };
 
   render() {
-    console.log(this.state.files);
     const fileList = JSON.parse(this.state.files);
-    const folderList = JSON.parse(this.state.folders);
-    console.log(fileList);
+    // const folderList = JSON.parse(this.state.folders);
+    // console.log(fileList);
+    // return fileList;
+
     return (
       <div className={"homeApp"}>
         <div className={"leftMenu"}>
@@ -232,17 +270,15 @@ class App extends React.Component {
                       <Menu.Item
                         key={"delete"}
                         onClick={() => {
-                          this.delete(file.name);
+                          this.deleteFile(file.id);
                         }}
                       >
                         Delete
                       </Menu.Item>
                       {file.type === "file" && (
-                        <Menu.Item key={"download"}>
+                        <Menu.Item key={index}>
                           <a
-                            href={
-                              "/files" + this.state.curDirectory + file.name
-                            }
+                            href={"/files" + this.state.curDirectory + file.id}
                           >
                             Download
                           </a>
@@ -272,11 +308,13 @@ class App extends React.Component {
                       }, 300);
                     }}
                   >
-                    <img
-                      src={require("../assets/" + file.type + ".png").default}
-                      alt={""}
-                    />
-                    {file.name}
+                    <div>
+                      <img
+                        src={require("../assets/file.png").default}
+                        alt={""}
+                      />
+                      {file.name}
+                    </div>
                   </Button>
                 </Dropdown>
               ))}
@@ -332,8 +370,8 @@ class App extends React.Component {
         >
           <Upload
             name={"file"}
-            action="/file/upload"
-            multiple={true}
+            //action="/file/upload"
+            multiple={false}
             fileList={this.state.uploadFileList}
             onChange={(info) => {
               this.setState({ uploadFileList: info.fileList });
