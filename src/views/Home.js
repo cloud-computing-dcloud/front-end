@@ -91,39 +91,20 @@ class App extends React.Component {
       message.warn("Please select the file you want to upload first!");
       return;
     }
-    var file = this.state.uploadFileList[0];
-    console.log("file", file);
-    var frm = new FormData();
-    frm.append("file", file);
-    // fetch(`${API_SERVER}/folders/${this.state.curDirectory}/upload`, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //     Authorization: `Bearer ${this.state.sessionToken}`,
-    //   },
-    //   body: frm,
-    // });
+    var file = this.state.uploadFileList[0].originFileObj;
 
-    request.post(
-      `${API_SERVER}/folders/${this.state.curDirectory}/upload`,
-      frm,
-      {
-        headers: {
-          "Content-Type": `multipart/form-data; boundary=${frm._boundary}`,
-          Authorization: `Bearer ${this.state.sessionToken}`,
-        },
-      }
-    );
+    var form = new FormData();
+    form.append("file", file);
 
-    // axios({
-    //   method: "post",
-    //   url: `${API_SERVER}/folders/${this.state.curDirectory}/upload`,
-    //   data: { frm },
-    //   headers: {
-    //     "Content-Type": `multipart/form-data; boundary=${frm._boundary}`,
-    //     Authorization: `Bearer ${this.state.sessionToken}`,
-    //   },
-    // });
+    axios({
+      method: "post",
+      url: `${API_SERVER}/folders/${this.state.curDirectory}/upload`,
+      data: form,
+      headers: {
+        "content-type": `multipart/form-data; boundary=${form._boundary}`,
+        Authorization: `Bearer ${this.state.sessionToken}`,
+      },
+    });
 
     message.success("Upload success");
     this.setState({
@@ -370,8 +351,8 @@ class App extends React.Component {
         >
           <Upload
             name={"file"}
-            //action="/file/upload"
-            multiple={false}
+            action="/file/upload"
+            multiple={true}
             fileList={this.state.uploadFileList}
             onChange={(info) => {
               this.setState({ uploadFileList: info.fileList });
