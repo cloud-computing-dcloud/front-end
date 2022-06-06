@@ -23,13 +23,23 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      rootDirectory: sessionStorage.getItem("root_folder"),
+      curDirectoryState: "private",
       curMenuIndex: -1,
       curDirectory: sessionStorage.getItem("root_folder"),
       files: JSON.stringify(["test"]),
       folders: JSON.stringify(["test"]),
       newFolderModalVisible: false,
       newFolderModalLoading: false,
+      inviteUserModalVisible: false,
+      inviteUserModalLoading: false,
+      newGroupModalVisible: false,
+      newGroupModalLoading: false,
       newFolderName: "",
+      newGroupName: "",
+      inviteUser: "",
+      isGroupFocus: false,
+      groupLists: [],
       uploadModalVisible: false,
       uploadModalLoading: false,
       uploadFileList: [],
@@ -61,6 +71,53 @@ class App extends React.Component {
       });
   };
 
+  getGroupList = async () => {
+    await request
+      .get(`${API_SERVER}/groups`, {
+        headers: {
+          Authorization: `Bearer ${this.state.sessionToken}`,
+        },
+      })
+      .then((response) => {
+        console.log(response);
+        this.setState({
+          // curDirectory: folderId,
+          groupLists: response.data.groupDTOList,
+          // folders: JSON.stringify(response.data.folders),
+        });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
+  createNewGroup = () => {
+    request
+      .post(
+        `${API_SERVER}/group/create`,
+        {
+          name: this.state.newGroupName,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.state.sessionToken}`,
+          },
+        }
+      )
+      .then((response) => {
+        message.success("Create Group success");
+        this.setState({
+          curMenuIndex: -1,
+          newGroupModalVisible: false,
+          newGroupModalLoading: false,
+        });
+        this.getMyFiles(this.state.curDirectory);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
   //创建文件夹
   createNewFolder = () => {
     if (this.state.newFolderName === "") {
@@ -69,19 +126,50 @@ class App extends React.Component {
     }
     this.setState({ newFolderModalLoading: true });
     request
-      .post(`${API_SERVER}/folders/${this.state.curDirectory}/create`, {
-        name: this.state.newFolderName,
-      },{
-        headers: {
-          Authorization: `Bearer ${this.state.sessionToken}`,
+      .post(
+        `${API_SERVER}/folders/${this.state.curDirectory}/create`,
+        {
+          name: this.state.newFolderName,
         },
-      })
+        {
+          headers: {
+            Authorization: `Bearer ${this.state.sessionToken}`,
+          },
+        }
+      )
       .then((response) => {
         message.success("Create success");
         this.setState({
           curMenuIndex: -1,
           newFolderModalVisible: false,
           newFolderModalLoading: false,
+        });
+        this.getMyFiles(this.state.curDirectory);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
+  inviteUser = () => {
+    request
+      .post(
+        `${API_SERVER}/group/${this.state.curDirectory}/join`,
+        {
+          username: this.state.inviteUser,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.state.sessionToken}`,
+          },
+        }
+      )
+      .then((response) => {
+        message.success("Invite User success");
+        this.setState({
+          curMenuIndex: -1,
+          inviteUserModalVisible: false,
+          inviteUserModalLoading: false,
         });
         this.getMyFiles(this.state.curDirectory);
       })
@@ -122,38 +210,42 @@ class App extends React.Component {
     this.getMyFiles(this.state.curDirectory);
   };
 
-  downloadFile = (fileId,fileName) => {
+  downloadFile = (fileId, fileName) => {
     request
-      .post(`${API_SERVER}/folders/${this.state.curDirectory}/download`, {
-        fileId: fileId,
-      },{
-        headers: {
-          Authorization: `Bearer ${this.state.sessionToken}`,
+      .post(
+        `${API_SERVER}/folders/${this.state.curDirectory}/download`,
+        {
+          fileId: fileId,
         },
-      })
+        {
+          headers: {
+            Authorization: `Bearer ${this.state.sessionToken}`,
+          },
+        }
+      )
       .then((response) => {
         const url = response.data.downloadUrl;
-        fetch(url, { method: 'GET' })
+        fetch(url, { method: "GET" })
           .then((res) => {
-            return res.blob() // raw 데이터를 받아온다
+            return res.blob(); // raw 데이터를 받아온다
           })
           .then((blob) => {
-            const url = window.URL.createObjectURL(blob) // 받아온 날 상태의 data를 현재 window에서만 사용하는 url로 바꾼다
-            const a = document.createElement('a')
-            a.href = url
-            a.download =  fileName// 원하는 이름으로 파일명 지정
-            document.body.appendChild(a)
-            a.click() // 자동으로 눌러버리기
+            const url = window.URL.createObjectURL(blob); // 받아온 날 상태의 data를 현재 window에서만 사용하는 url로 바꾼다
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName; // 원하는 이름으로 파일명 지정
+            document.body.appendChild(a);
+            a.click(); // 자동으로 눌러버리기
             setTimeout((_) => {
-              window.URL.revokeObjectURL(url) // 해당 url을 더 사용 못하게 날려버린다
-            }, 60000)
-            a.remove() // a를 다 사용했으니 지워준다
+              window.URL.revokeObjectURL(url); // 해당 url을 더 사용 못하게 날려버린다
+            }, 60000);
+            a.remove(); // a를 다 사용했으니 지워준다
           })
           .catch((err) => {
-            console.error('err: ', err)
-          })
-      })
-  }
+            console.error("err: ", err);
+          });
+      });
+  };
 
   //删除
   deleteFile = (key) => {
@@ -173,7 +265,7 @@ class App extends React.Component {
       });
   };
 
-  deleteFolder = (folderId) =>{
+  deleteFolder = (folderId) => {
     request
       .delete(`${API_SERVER}/folders/${folderId}`, {
         headers: {
@@ -187,7 +279,7 @@ class App extends React.Component {
       .catch((error) => {
         console.log(error);
       });
-  }
+  };
 
   //退出
   logout = () => {
@@ -227,40 +319,128 @@ class App extends React.Component {
             >
               Upload
             </Button>
-          
+            <Button
+              onClick={(event) => {
+                setTimeout(() => {
+                  this.setState(
+                    {
+                      // curMenuIndex: 2,
+                      isGroupFocus: true,
+                      // uploadModalVisible: true,
+                    },
+                    function () {
+                      this.getGroupList();
+                    }
+                  );
+                });
+              }}
+            >
+              Group List
+            </Button>
+            {this.state.isGroupFocus ? (
+              <div>
+                {this.state.groupLists.map((group, index) => (
+                  <Button
+                    type={"link"}
+                    onClick={(event) => {
+                      setTimeout(() => {
+                        this.setState(
+                          {
+                            curDirectory: group.rootFolderId,
+                            curDirectoryState: "public",
+                          },
+                          function () {
+                            this.getMyFiles(this.state.curDirectory);
+                          }
+                        );
+                      });
+                    }}
+                  >
+                    {group.name}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <br />
           <br />
           <br />
-          <img
+          {/* <img
             src={require("../assets/recycleBin.png").default}
             alt={""}
             onClick={(event) => {
               message.info("To be developed");
             }}
-          />
+          /> */}
         </div>
         <div className={"rightContent"}>
           <div className={"head"}>
-            My Drive
+            <div
+              type={"link"}
+              onClick={(event) => {
+                setTimeout(() => {
+                  this.setState(
+                    {
+                      curDirectoryState: "private",
+                      curDirectory: this.state.rootDirectory,
+                    },
+                    function () {
+                      this.getMyFiles(this.state.curDirectory);
+                    }
+                  );
+                });
+              }}
+            >
+              My Drive
+            </div>
             <div>
-              <Button
-                type={"primary"}
-                onClick={(event) => {
-                  message.info("To be developed");
-                }}
-              >
-                Share drive
-              </Button>
-              &nbsp;&nbsp;
-              <Popconfirm
-                title="Are you sure to logout?"
-                onConfirm={(e) => {
-                  this.logout();
-                }}
-              >
-                <Button type={"danger"}>Logout</Button>
-              </Popconfirm>
+              {this.state.curDirectoryState === "public" ? (
+                <>
+                  <Button
+                    type={this.state.curMenuIndex === 4 ? "primary" : "default"}
+                    onClick={(event) => {
+                      this.setState({
+                        curMenuIndex: 4,
+                        inviteUserModalVisible: true,
+                      });
+                    }}
+                  >
+                    Share drive
+                  </Button>
+                  &nbsp;&nbsp;
+                  <Popconfirm
+                    title="Are you sure to logout?"
+                    onConfirm={(e) => {
+                      this.logout();
+                    }}
+                  >
+                    <Button type={"danger"}>Logout</Button>
+                  </Popconfirm>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type={this.state.curMenuIndex === 2 ? "primary" : "default"}
+                    onClick={(event) => {
+                      this.setState({
+                        curMenuIndex: 2,
+                        newGroupModalVisible: true,
+                      });
+                    }}
+                  >
+                    Create Group
+                  </Button>
+                  &nbsp;&nbsp;
+                  <Popconfirm
+                    title="Are you sure to logout?"
+                    onConfirm={(e) => {
+                      this.logout();
+                    }}
+                  >
+                    <Button type={"danger"}>Logout</Button>
+                  </Popconfirm>
+                </>
+              )}
             </div>
           </div>
           <div className={"body"}>
@@ -311,7 +491,7 @@ class App extends React.Component {
                         }}
                       >
                         Delete
-                      </Menu.Item>                    
+                      </Menu.Item>
                     </Menu>
                   }
                 >
@@ -359,10 +539,10 @@ class App extends React.Component {
                       <Menu.Item
                         key={"download"}
                         onClick={() => {
-                          this.downloadFile(file.id,file.name);
+                          this.downloadFile(file.id, file.name);
                         }}
                       >
-                          Download
+                        Download
                       </Menu.Item>
                       <Menu.Item
                         key={"delete"}
@@ -371,7 +551,7 @@ class App extends React.Component {
                         }}
                       >
                         Delete
-                      </Menu.Item>                    
+                      </Menu.Item>
                     </Menu>
                   }
                 >
@@ -440,6 +620,35 @@ class App extends React.Component {
           <div className={"warmMesg"}>Do not include special characters</div>
         </Modal>
         <Modal
+          title={"New Group"}
+          visible={this.state.newGroupModalVisible}
+          confirmLoading={this.state.newGroupModalLoading}
+          onOk={(e) => {
+            this.createNewGroup();
+          }}
+          onCancel={(e) => {
+            this.setState({
+              newGroupModalVisible: false,
+              newGroupModalLoading: false,
+            });
+          }}
+          centered={true}
+          width={"300px"}
+        >
+          <Input
+            value={this.state.newGroupName}
+            maxLength={20}
+            ref={(input) => {
+              this.inputNewGroupName = input;
+            }}
+            onChange={(event) => {
+              this.setState({ newGroupName: event.target.value });
+            }}
+          />
+          <br />
+          <div className={"warmMesg"}>Do not include special characters</div>
+        </Modal>
+        <Modal
           title={"Upload"}
           visible={this.state.uploadModalVisible}
           confirmLoading={this.state.uploadModalLoading}
@@ -467,6 +676,35 @@ class App extends React.Component {
           >
             <Button icon={<UploadOutlined />}>Click upload</Button>
           </Upload>
+        </Modal>
+        <Modal
+          title={"Invite user"}
+          visible={this.state.inviteUserModalVisible}
+          confirmLoading={this.state.inviteUserModalLoading}
+          onOk={(e) => {
+            this.inviteUser();
+          }}
+          onCancel={(e) => {
+            this.setState({
+              inviteUserModalVisible: false,
+              inviteUserModalLoading: false,
+            });
+          }}
+          centered={true}
+          width={"300px"}
+        >
+          <Input
+            value={this.state.inviteUser}
+            maxLength={20}
+            ref={(input) => {
+              this.inputInviteUser = input;
+            }}
+            onChange={(event) => {
+              this.setState({ inviteUser: event.target.value });
+            }}
+          />
+          <br />
+          <div className={"warmMesg"}>Do not include special characters</div>
         </Modal>
       </div>
     );
